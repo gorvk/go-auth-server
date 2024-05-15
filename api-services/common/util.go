@@ -1,20 +1,24 @@
 package common
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorvk/rent-app/server/api-services/common/constants"
+	customTypes "github.com/gorvk/rent-app/server/api-services/common/types"
 	"github.com/lib/pq"
 )
 
 func HandleDbError(err error, w http.ResponseWriter, friendlyMessage string, statusCode int) {
-	pqErr, isPqError := err.(*pq.Error)
-	if isPqError {
+	if err != nil {
+		pqErr, _ := err.(*pq.Error)
 		msg := fmt.Sprintf("PostgreSQL Error: %q - %q", friendlyMessage, pqErr.Message)
-		http.Error(w, msg, statusCode)
+		data, _ := ConstructResponse(false, msg)
+		http.Error(w, string(data), statusCode)
 	}
 }
 
@@ -28,13 +32,14 @@ func CheckHttpResponseType(w http.ResponseWriter, r *http.Request, methodType st
 func HandleHttpError(err error, w http.ResponseWriter, friendlyMessage string, statusCode int) error {
 	if err != nil {
 		msg := fmt.Sprintf("Http Error: %q", friendlyMessage)
-		http.Error(w, msg, statusCode)
+		data, _ := ConstructResponse(false, msg)
+		http.Error(w, string(data), statusCode)
 		return err
 	}
 	return nil
 }
 
-func CheckAuthentication(w http.ResponseWriter, r *http.Request) (*jwt.Token, error) {
+func IsAuthenticated(r *http.Request) (*jwt.Token, error) {
 	cookie, err := r.Cookie("rent_app_jwt")
 	if err != nil {
 		return nil, err
@@ -49,4 +54,32 @@ func CheckAuthentication(w http.ResponseWriter, r *http.Request) (*jwt.Token, er
 	}
 
 	return token, err
+}
+
+func ConstructResponse(isSuccess bool, result any) ([]byte, error) {
+	response := customTypes.RESPONSE_PARAMETERS{
+		IsSuccess: isSuccess,
+		Result:    result,
+	}
+	data, err := json.Marshal(response)
+	return data, err
+}
+
+func ExpireCookie(cookieName string, w http.ResponseWriter) {
+	cookie := &http.Cookie{
+		Name:     "rent_app_jwt",
+		Value:    "",
+		Expires:  time.Now().Add(-time.Hour),
+		HttpOnly: true,
+		Path:     "/",
+	}
+	http.SetCookie(w, cookie)
+}
+
+func CastStructs(source interface{}, destination interface{}) error {
+	js, err := json.Marshal(source)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(js, destination)
 }

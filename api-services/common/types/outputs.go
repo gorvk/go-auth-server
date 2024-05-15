@@ -1,5 +1,6 @@
 package types
 
 type RESPONSE_PARAMETERS struct {
-	Result any `json:"email"`
+	IsSuccess bool `json:"isSuccess"`
+	Result    any  `json:"result"`
 }

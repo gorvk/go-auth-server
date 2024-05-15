@@ -2,8 +2,6 @@ package controllers
 
 import (
 	"encoding/json"
-	"fmt"
-	"io"
 	"net/http"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -21,31 +19,14 @@ func GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := common.CheckAuthentication(w, r)
+	token, err := common.IsAuthenticated(r)
 	if err != nil {
 		common.HandleHttpError(err, w, constants.ERROR_HTTP_UNAUTHORIZED, http.StatusUnauthorized)
 		return
 	}
 
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		common.HandleHttpError(err, w, constants.ERROR_HTTP_INVALID_REQUEST_BODY, http.StatusBadRequest)
-		return
-	}
-
-	var payload customTypes.GET_USER_BY_EMAIL_INPUT
-	err = json.Unmarshal(data, &payload)
-	if err != nil {
-		common.HandleHttpError(err, w, constants.ERROR_HTTP_UNABLE_TO_PARSE_REQUEST, http.StatusBadRequest)
-		return
-	}
-
-	if payload.Email == "" {
-		common.HandleHttpError(fmt.Errorf(constants.ERROR_HTTP_INVALID_REQUEST_BODY), w, constants.ERROR_HTTP_INVALID_REQUEST_BODY, http.StatusBadRequest)
-		return
-	}
-
-	rows, err := models.GetUserByEmail(payload.Email)
+	claims := token.Claims.(*jwt.RegisteredClaims)
+	rows, err := models.GetUserByEmail(claims.Issuer)
 	if err != nil {
 		common.HandleDbError(err, w, constants.ERROR_DB_UNABLE_TO_GET_RECORD, http.StatusInternalServerError)
 		return
@@ -56,25 +37,22 @@ func GetCurrentUser(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		rows.Scan(
 			&user.Id,
+			&user.Email,
 			&user.FirstName,
 			&user.LastName,
-			&user.Email,
-			&user.PhoneNumber,
-			&user.UserAddress,
-			&user.IsShopEnabled,
 			&user.AccountPassword,
 		)
 	}
 
-	claims := token.Claims.(*jwt.RegisteredClaims)
-	if claims.Issuer != fmt.Sprint(user.Id) {
-		common.HandleHttpError(fmt.Errorf(constants.ERROR_HTTP_ACCESS_DENIED), w, constants.ERROR_HTTP_ACCESS_DENIED, http.StatusForbidden)
+	if user.Id == 0 {
+		common.HandleHttpError(err, w, constants.ERROR_HTTP_UNAUTHORIZED, http.StatusUnauthorized)
 		return
 	}
 
-	var Response customTypes.RESPONSE_PARAMETERS
-	Response.Result = user
-	data, err = json.Marshal(Response)
+	var response customTypes.RESPONSE_PARAMETERS
+	response.Result = user
+	response.IsSuccess = true
+	data, err := json.Marshal(response)
 	if err != nil {
 		common.HandleHttpError(err, w, constants.ERROR_HTTP_UNABLE_TO_PARSE_RESPONSE, http.StatusInternalServerError)
 		return

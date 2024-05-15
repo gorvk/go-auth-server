@@ -19,7 +19,7 @@ import (
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	var err error
-	err = common.CheckHttpResponseType(w, r, http.MethodGet)
+	err = common.CheckHttpResponseType(w, r, http.MethodPost)
 	if err != nil {
 		return
 	}
@@ -38,7 +38,8 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if payload.Email == "" || payload.AccountPassword == "" {
-		common.HandleHttpError(fmt.Errorf(constants.ERROR_HTTP_INVALID_REQUEST_BODY), w, constants.ERROR_HTTP_INVALID_REQUEST_BODY, http.StatusBadRequest)
+		err := fmt.Errorf(constants.ERROR_HTTP_INVALID_REQUEST_BODY)
+		common.HandleHttpError(err, w, constants.ERROR_HTTP_INVALID_REQUEST_BODY, http.StatusBadRequest)
 		return
 	}
 
@@ -54,30 +55,29 @@ func Login(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		rows.Scan(
 			&userRow.Id,
+			&userRow.Email,
 			&userRow.FirstName,
 			&userRow.LastName,
-			&userRow.Email,
-			&userRow.PhoneNumber,
-			&userRow.UserAddress,
-			&userRow.IsShopEnabled,
 			&bytePassword,
 		)
 	}
 
 	if len(userRow.Email) == 0 || userRow.Id == 0 {
-		http.Error(w, constants.ERROR_HTTP_INVALID_USER, http.StatusBadRequest)
+		err := fmt.Errorf(constants.ERROR_HTTP_INVALID_USER)
+		common.HandleHttpError(err, w, constants.ERROR_HTTP_INVALID_USER, http.StatusBadRequest)
 		return
 	}
 
 	inputPassword := []byte(payload.AccountPassword)
 	err = bcrypt.CompareHashAndPassword(bytePassword, inputPassword)
 	if err != nil {
-		http.Error(w, constants.ERROR_HTTP_INCORRECT_PASSWORD, http.StatusBadRequest)
+		err := fmt.Errorf(constants.ERROR_HTTP_INCORRECT_PASSWORD)
+		common.HandleHttpError(err, w, constants.ERROR_HTTP_INCORRECT_PASSWORD, http.StatusBadRequest)
 		return
 	}
 
 	claims := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
-		Issuer:    fmt.Sprint(userRow.Id),
+		Issuer:    fmt.Sprint(userRow.Email),
 		ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 168)),
 	})
 
@@ -94,5 +94,12 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		HttpOnly: true,
 		Path:     "/",
 	}
+
 	http.SetCookie(w, cookie)
+	data, err := common.ConstructResponse(true, nil)
+	if err != nil {
+		common.HandleHttpError(err, w, constants.ERROR_HTTP_UNABLE_TO_PARSE_RESPONSE, http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
 }

@@ -13,7 +13,7 @@ func RegisterNewUser(user customTypes.User, saltHashedPassword []byte) (sql.Resu
 		return nil, nil
 	}
 
-	stmt, err := db.Prepare("CALL create_user($1, $2, $3, $4, $5, $6::BYTEA)")
+	stmt, err := db.Prepare("CALL create_user($1, $2, $3, $4::BYTEA)")
 
 	if err != nil {
 		return nil, err
@@ -24,8 +24,6 @@ func RegisterNewUser(user customTypes.User, saltHashedPassword []byte) (sql.Resu
 		user.Email,
 		user.FirstName,
 		user.LastName,
-		user.PhoneNumber,
-		user.UserAddress,
 		saltHashedPassword,
 	)
 

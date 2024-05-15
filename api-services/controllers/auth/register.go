@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/gorvk/rent-app/server/api-services/common"
 	"github.com/gorvk/rent-app/server/api-services/common/constants"
@@ -46,6 +47,17 @@ func RegisterUserAccount(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	user.Email = strings.ToLower(user.Email)
 	_, err = models.RegisterNewUser(user, saltHashedPassword)
-	common.HandleDbError(err, w, constants.ERROR_DB_UNABLE_TO_CREATE_RECORD, http.StatusInternalServerError)
+	if err != nil {
+		common.HandleDbError(err, w, constants.ERROR_DB_UNABLE_TO_CREATE_RECORD, http.StatusInternalServerError)
+		return
+	}
+
+	data, err := common.ConstructResponse(true, nil)
+	if err != nil {
+		common.HandleHttpError(err, w, constants.ERROR_HTTP_UNABLE_TO_PARSE_RESPONSE, http.StatusInternalServerError)
+		return
+	}
+	w.Write(data)
 }

@@ -2,9 +2,9 @@ package controllers
 
 import (
 	"net/http"
-	"time"
 
 	"github.com/gorvk/rent-app/server/api-services/common"
+	"github.com/gorvk/rent-app/server/api-services/common/constants"
 )
 
 func Logout(w http.ResponseWriter, r *http.Request) {
@@ -13,12 +13,11 @@ func Logout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	cookie := &http.Cookie{
-		Name:     "rent_app_jwt",
-		Value:    "",
-		Expires:  time.Now().Add(-time.Hour),
-		HttpOnly: true,
-		Path:     "/",
+	common.ExpireCookie("rent_app_jwt", w)
+	data, err := common.ConstructResponse(true, nil)
+	if err != nil {
+		common.HandleHttpError(err, w, constants.ERROR_HTTP_UNABLE_TO_PARSE_RESPONSE, http.StatusInternalServerError)
+		return
 	}
-	http.SetCookie(w, cookie)
+	w.Write(data)
 }
