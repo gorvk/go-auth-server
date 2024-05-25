@@ -5,6 +5,7 @@ import userSlice from "../../state/slices/userSlice";
 import { IUser } from "../../interfaces/models";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import loaderSlice from "../../state/slices/loaderSlice";
 
 const AccountMenu = (props: {
   menuId: string;
@@ -17,23 +18,22 @@ const AccountMenu = (props: {
   const navigate = useNavigate();
 
   const handleLogout = async () => {
+    const setLoader = loaderSlice.actions.setLoader;
     try {
+      dispatch(setLoader(true));
       const loginResponse = await logoutApi();
       if (loginResponse.isSuccess) {
         const setCurrentUser = userSlice.actions.setCurrentUser;
-        handleAccountMenuClose();
         dispatch(setCurrentUser({} as IUser));
+        handleAccountMenuClose();
         navigate("/login");
       }
     } catch (error) {
       console.error(error);
+    } finally {
+      dispatch(setLoader(false));
     }
   };
-
-  function handleMyAccount() {
-    console.error(Error("Function not implemented."));
-    handleAccountMenuClose();
-  }
 
   const handleAccountMenuClose = () => {
     setAnchorEl(null);

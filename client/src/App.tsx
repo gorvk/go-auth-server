@@ -18,6 +18,7 @@ import { isLoggedInApi } from "./svc/auth";
 import Unprotected from "./screens/unProtected";
 import Login from "./screens/login";
 import Protected from "./screens/protected";
+import { Box, LinearProgress } from "@mui/material";
 
 const ProtectedRoute = (props: {
   isAuthenticated: boolean;
@@ -29,6 +30,7 @@ const ProtectedRoute = (props: {
 
 function App() {
   const currentUser = useSelector((state: RootState) => state.currentUser);
+  const loader = useSelector((state: RootState) => state.loader);
   const dispatch = useDispatch();
 
   useEffect(() => {
@@ -54,13 +56,24 @@ function App() {
   }, []);
 
   if (currentUser === null) {
-    return <h1>Loading...</h1>;
+    return (
+      <Box sx={{ width: "100%" }}>
+        <LinearProgress />
+      </Box>
+    );
   }
 
   const isAuthenticated: boolean = currentUser.id !== undefined;
   return (
     <BrowserRouter>
       <Navbar />
+      {loader ? (
+        <Box sx={{ width: "100%" }}>
+          <LinearProgress />
+        </Box>
+      ) : (
+        <></>
+      )}
       <Routes>
         <Route path="/unprotected" element={<Unprotected />} />
         <Route
